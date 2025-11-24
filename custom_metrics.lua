@@ -1,3 +1,8 @@
+-- ============================================
+-- FlyWithLua Integrated Flight & Trim Display
+-- 통합 비행 정보 및 트림 디스플레이
+-- ============================================
+
 -- DataRef 바인딩 - Flight Info
 DataRef("df_gs_m_ps", "sim/flightmodel/position/groundspeed")
 DataRef("df_fw_kgs", "sim/flightmodel/weight/m_fuel_total")
@@ -13,7 +18,9 @@ dataref("df_elevator_trim", "sim/cockpit2/controls/elevator_trim")
 dataref("df_aileron_trim", "sim/cockpit2/controls/aileron_trim")
 dataref("df_rudder_trim", "sim/cockpit2/controls/rudder_trim")
 
+-- ============================================
 -- 화면 설정 - Flight Info
+-- ============================================
 local PANEL_WIDTH = 450
 local PANEL_PADDING = 15
 local LINE_HEIGHT = 20
@@ -22,16 +29,21 @@ local SECTION_SPACING = 8
 local PANEL_X = 20
 local PANEL_Y_TOP = SCREEN_HEIGHT - 50
 
--- 화면 설정 - Trim Display
-local TRIM_X = SCREEN_WIDTH - 320
+-- ============================================
+-- 화면 설정 - Trim Display (컴팩트)
+-- ============================================
+local TRIM_X = SCREEN_WIDTH - 280
 local TRIM_Y = SCREEN_HEIGHT - 50
-local TRIM_WIDTH = 300
-local TRIM_HEIGHT = 250
-local TRIM_BAR_WIDTH = 260
-local TRIM_BAR_HEIGHT = 20
+local TRIM_WIDTH = 260
+local TRIM_HEIGHT = 140
+local TRIM_BAR_WIDTH = 200
+local TRIM_BAR_HEIGHT = 14
+local TRIM_PADDING = 12
 
--- 색상 정의 - Flight Info
-local COLOR_BG = { 0, 0, 0, 0.7 }
+-- ============================================
+-- 색상 정의 (통일된 테마)
+-- ============================================
+local COLOR_BG = { 0, 0, 0, 0.5 } -- 더 투명한 배경
 local COLOR_HEADER_BG = { 0.1, 0.3, 0.5, 0.8 }
 local COLOR_HEADER_TEXT = { 1, 1, 1, 1 }
 local COLOR_LABEL = { 0.7, 0.9, 1, 1 }
@@ -39,11 +51,22 @@ local COLOR_VALUE_PRIMARY = { 1, 1, 1, 1 }
 local COLOR_VALUE_SECONDARY = { 0.8, 0.8, 0.8, 1 }
 local COLOR_SEPARATOR = { 0.3, 0.5, 0.7, 0.6 }
 
+-- Trim 전용 색상
+local COLOR_TRIM_BG = { 0.05, 0.05, 0.05, 0.7 }   -- 트림 바 배경
+local COLOR_TRIM_BORDER = { 0.4, 0.6, 0.8, 0.8 }  -- 트림 테두리
+local COLOR_TRIM_CENTER = { 0.6, 0.8, 1.0, 0.7 }  -- 중앙선
+local COLOR_TRIM_NEUTRAL = { 0.2, 0.9, 0.3, 0.9 } -- 중립 근처 (녹색)
+local COLOR_TRIM_OFFSET = { 1.0, 0.7, 0.2, 0.9 }  -- 오프셋 (주황색)
+
+-- ============================================
 -- 표시 여부
+-- ============================================
 local show_flight_info = true
 local show_trim_display = true
 
+-- ============================================
 -- 데이터 저장 (초기값 설정)
+-- ============================================
 local display_data = {
     speed = { kts = "  0", kph = "   0" },
     altitude = {
@@ -234,49 +257,43 @@ function draw_flight_info()
 end
 
 -- ============================================
--- Trim Display 함수들
+-- Trim Display 함수들 (컴팩트 개선 버전)
 -- ============================================
 
--- 트림 바 그리기 함수
+-- 트림 바 그리기 (컴팩트)
 function draw_trim_bar(x, y, value, label, percentage)
-    -- 레이블과 퍼센트 표시
-    draw_string(x, y, string.format("%s: %s", label, percentage), "white")
+    -- 레이블과 퍼센트 표시 (한 줄)
+    local label_text = string.format("%-5s %s", label, percentage)
+    draw_string(x, y, label_text, COLOR_LABEL[1], COLOR_LABEL[2], COLOR_LABEL[3])
 
-    local bar_y = y - 22
+    local bar_y = y - 18
 
-    -- 배경 (어두운 회색)
-    glColor4f(0.2, 0.2, 0.2, 0.8)
-    glRectf(x, bar_y, x + TRIM_BAR_WIDTH, bar_y + TRIM_BAR_HEIGHT)
-
-    -- 테두리
-    graphics.set_color(0.5, 0.5, 0.5, 0.8)
+    -- 배경 (어두운 색)
+    set_color(COLOR_TRIM_BG)
     graphics.draw_rectangle(x, bar_y, x + TRIM_BAR_WIDTH, bar_y + TRIM_BAR_HEIGHT)
 
-    -- 중앙선 (흰색)
+    -- 테두리
+    set_color(COLOR_TRIM_BORDER)
+    graphics.set_width(1)
+    graphics.draw_rectangle(x, bar_y, x + TRIM_BAR_WIDTH, bar_y + TRIM_BAR_HEIGHT)
+
+    -- 중앙선 (중립 위치)
     local center_x = x + TRIM_BAR_WIDTH / 2
-    graphics.set_color(1.0, 1.0, 1.0, 0.8)
+    set_color(COLOR_TRIM_CENTER)
     graphics.draw_line(center_x, bar_y, center_x, bar_y + TRIM_BAR_HEIGHT)
 
-    -- 트림 인디케이터 위치 계산 (value는 -1.0 ~ +1.0 범위)
+    -- 트림 인디케이터 위치 계산
     local indicator_x = center_x + (value * TRIM_BAR_WIDTH / 2)
 
-    -- 트림 인디케이터 색상 (중립 근처는 녹색, 그 외는 주황색)
+    -- 트림 인디케이터 색상 선택
     if math.abs(value) < 0.1 then
-        glColor4f(0.0, 1.0, 0.0, 0.9) -- 녹색
+        set_color(COLOR_TRIM_NEUTRAL)
     else
-        glColor4f(1.0, 0.6, 0.0, 0.9) -- 주황색
+        set_color(COLOR_TRIM_OFFSET)
     end
 
-    -- 인디케이터 그리기 (세로 막대)
-    glRectf(indicator_x - 3, bar_y - 5, indicator_x + 3, bar_y + TRIM_BAR_HEIGHT + 5)
-
-    -- 인디케이터 테두리
-    if math.abs(value) < 0.1 then
-        graphics.set_color(0.5, 1.0, 0.5, 1.0)
-    else
-        graphics.set_color(1.0, 0.8, 0.3, 1.0)
-    end
-    graphics.draw_rectangle(indicator_x - 3, bar_y - 5, indicator_x + 3, bar_y + TRIM_BAR_HEIGHT + 5)
+    -- 인디케이터 그리기 (작은 세로 막대)
+    glRectf(indicator_x - 2, bar_y - 3, indicator_x + 2, bar_y + TRIM_BAR_HEIGHT + 3)
 end
 
 -- Trim Display 화면 그리기
@@ -287,52 +304,50 @@ function draw_trim_display()
 
     local x = TRIM_X
     local y = TRIM_Y
-    local content_x = x + 20
+    local content_x = x + TRIM_PADDING
 
-    -- 반투명 배경
-    glColor4f(0, 0, 0, 0.7)
-    glRectf(x - 10, y - TRIM_HEIGHT - 10, x + TRIM_WIDTH + 10, y + 10)
+    -- 배경 (투명도 높음)
+    set_color(COLOR_BG)
+    graphics.draw_rectangle(x, y - TRIM_HEIGHT, x + TRIM_WIDTH, y)
 
     -- 테두리
-    graphics.set_color(0.5, 0.5, 0.5, 0.8)
-    graphics.draw_rectangle(x - 10, y - TRIM_HEIGHT - 10, x + TRIM_WIDTH + 10, y + 10)
+    set_color(COLOR_TRIM_BORDER)
+    graphics.set_width(1)
+    graphics.draw_rectangle(x, y - TRIM_HEIGHT, x + TRIM_WIDTH, y)
 
     -- 헤더
     set_color(COLOR_HEADER_BG)
-    graphics.draw_rectangle(x - 10, y - HEADER_HEIGHT, x + TRIM_WIDTH + 10, y + 10)
+    graphics.draw_rectangle(x, y - HEADER_HEIGHT, x + TRIM_WIDTH, y)
     y = y - HEADER_HEIGHT + 7
-    draw_string(content_x + 50, y, "TRIM DISPLAY", COLOR_HEADER_TEXT[1], COLOR_HEADER_TEXT[2], COLOR_HEADER_TEXT[3])
-    y = y - PANEL_PADDING - 5
+    draw_string(content_x + 40, y, "TRIM CONTROL", COLOR_HEADER_TEXT[1], COLOR_HEADER_TEXT[2], COLOR_HEADER_TEXT[3])
+    y = y - HEADER_HEIGHT + 5
 
     -- 구분선
-    y = y - SECTION_SPACING
-    draw_separator(content_x, y, TRIM_WIDTH - 20)
-    y = y - LINE_HEIGHT
+    draw_separator(content_x, y, TRIM_WIDTH - TRIM_PADDING * 2)
+    y = y - 4
 
-    -- Pitch Trim (엘리베이터)
-    local pitch_percent = string.format("%+6.1f%%", df_elevator_trim * 100)
+    -- Pitch Trim
+    local pitch_percent = string.format("%+5.1f%%", df_elevator_trim * 100)
     draw_trim_bar(content_x, y, df_elevator_trim, "PITCH", pitch_percent)
 
-    -- Roll Trim (에일러론)
-    y = y - 60
-    local roll_percent = string.format("%+6.1f%%", df_aileron_trim * 100)
-    draw_trim_bar(content_x, y, df_aileron_trim, "ROLL ", roll_percent)
-
-    -- Yaw Trim (러더)
-    y = y - 60
-    local yaw_percent = string.format("%+6.1f%%", df_rudder_trim * 100)
-    draw_trim_bar(content_x, y, df_rudder_trim, "YAW  ", yaw_percent)
-
-    -- 하단 구분선
+    -- Roll Trim
     y = y - 30
-    draw_separator(content_x, y, TRIM_WIDTH - 20)
+    local roll_percent = string.format("%+5.1f%%", df_aileron_trim * 100)
+    draw_trim_bar(content_x, y, df_aileron_trim, "ROLL", roll_percent)
 
-    -- 상세 수치 표시
-    y = y - LINE_HEIGHT
+    -- Yaw Trim
+    y = y - 30
+    local yaw_percent = string.format("%+5.1f%%", df_rudder_trim * 100)
+    draw_trim_bar(content_x, y, df_rudder_trim, "YAW", yaw_percent)
+
+    -- 상세 수치 (선택사항)
+    y = y - 22
+    draw_separator(content_x, y, TRIM_WIDTH - TRIM_PADDING * 2)
+    y = y - 14
     draw_string(content_x, y,
         string.format("P:%+.3f R:%+.3f Y:%+.3f",
             df_elevator_trim, df_aileron_trim, df_rudder_trim),
-        "white")
+        COLOR_VALUE_SECONDARY[1], COLOR_VALUE_SECONDARY[2], COLOR_VALUE_SECONDARY[3])
 end
 
 -- ============================================
@@ -408,10 +423,11 @@ create_command("FlyWithLua/displays/toggle_all", "Toggle All Displays",
 
 -- 플러그인 로드 메시지
 logMsg("========================================")
-logMsg("Integrated Displays loaded successfully!")
+logMsg("Integrated Displays Loaded Successfully!")
 logMsg("- Flight Information Display")
-logMsg("- Trim Display")
-logMsg("Use menu or assign keys to commands:")
+logMsg("- Trim Control Display (Compact)")
+logMsg("")
+logMsg("Toggle via menu or assign commands:")
 logMsg("  FlyWithLua/displays/toggle_flight_info")
 logMsg("  FlyWithLua/displays/toggle_trim")
 logMsg("  FlyWithLua/displays/toggle_all")
