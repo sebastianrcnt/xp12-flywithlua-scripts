@@ -43,7 +43,7 @@ local TRIM_PADDING = 12
 -- ============================================
 -- 색상 정의 (통일된 테마)
 -- ============================================
-local COLOR_BG = { 0, 0, 0, 0.5 } -- 더 투명한 배경
+local COLOR_BG = { 0, 0, 0, 0.7 } -- 더 투명한 배경
 local COLOR_HEADER_BG = { 0.1, 0.3, 0.5, 0.8 }
 local COLOR_HEADER_TEXT = { 1, 1, 1, 1 }
 local COLOR_LABEL = { 0.7, 0.9, 1, 1 }
@@ -319,7 +319,7 @@ function draw_trim_display()
     set_color(COLOR_HEADER_BG)
     graphics.draw_rectangle(x, y - HEADER_HEIGHT, x + TRIM_WIDTH, y)
     y = y - HEADER_HEIGHT + 7
-    draw_string(content_x + 40, y, "TRIM CONTROL", COLOR_HEADER_TEXT[1], COLOR_HEADER_TEXT[2], COLOR_HEADER_TEXT[3])
+    draw_string(content_x, y, "TRIM CONTROL", COLOR_HEADER_TEXT[1], COLOR_HEADER_TEXT[2], COLOR_HEADER_TEXT[3])
     y = y - HEADER_HEIGHT + 5
 
     -- 구분선
@@ -344,10 +344,6 @@ function draw_trim_display()
     y = y - 22
     draw_separator(content_x, y, TRIM_WIDTH - TRIM_PADDING * 2)
     y = y - 14
-    draw_string(content_x, y,
-        string.format("P:%+.3f R:%+.3f Y:%+.3f",
-            df_elevator_trim, df_aileron_trim, df_rudder_trim),
-        COLOR_VALUE_SECONDARY[1], COLOR_VALUE_SECONDARY[2], COLOR_VALUE_SECONDARY[3])
 end
 
 -- ============================================
